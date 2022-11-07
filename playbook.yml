@@ -127,44 +127,7 @@
     #  - name: Remove   /root/.my.cnf
     #    ansible.builtin.file:
     #      path: /root/.my.cnf
-    #      state: absent
-
-    #  - name: Update "apt"
-    #  apt:
-    #  update_cache: yes
-    #  autoclean: yes
-    #  autoremove: yes
-#
-#  - name: Install Python3
-#  apt:
-#  name: python3
-#  state: present
-#
-#  - name: Install Pip
-#  apt:
-#  name: pip
-#  state: present
-#
-#  - name: Install MySQL server
-#  apt:
-#  name:
-#  state:
-#
-#  - name: Install MySQL client
-#  apt:
-#  name:
-#  state:
-#
-#  - name: Install PyMySQL Library
-#  pip:
-#  name:
-#  state:
-#
-#  - name: Start the MySQL service
-#  service:
-#  name:
-#  state:
-#  enabled:
+    #      state: absentgit 
 #
 #  - name: mod the auth plugin of MySQL
 #  command: find it
