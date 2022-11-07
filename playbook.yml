@@ -258,14 +258,14 @@
         chdir: /var/www/laravel
     
     - name: Run the php artisan .... command
-      ansible.builtin.shell: add it
+      ansible.builtin.shell: php artisan migrate
       args:
         chdir: /var/www/laravel
 
-    - name: Run the php artisan .... command
-      ansible.builtin.shell: add it
-      args:
-        chdir: /var/www/laravel
+    # - name: Run the php artisan .... command
+    #   ansible.builtin.shell: add it
+    #   args:
+    #     chdir: /var/www/laravel
 
     - name: Create an apache virtual host configuration file
       ansible.builtin.copy:
