@@ -1,0 +1,402 @@
+---
+- name: Playbook deploying Laravel Application to Ubuntu EC2 Instance
+  hosts: webservers
+  become: yes
+  remote_user: ubuntu
+  vars:
+    new_mysql_root_password: redacted
+    mysqlsoftware:
+      - mysql-server
+      - mysql-client
+
+  tasks:
+    - name: Update "apt"
+      apt:
+        update_cache: yes
+        autoclean: yes
+        autoremove: yes
+
+    - name: Install (git, apache2 unzip, curl)
+      apt:
+        pkg:
+          - git
+          - apache2
+          - unzip
+          - curl
+
+    - name: Install Software properties
+      command: sudo apt-get install lsb-release ca-certificates apt-transport-https software-properties-common -y
+
+    - name: Add Apt Repo for PHP
+      ansible.builtin.apt_repository:
+        repo: ppa:ondrej/php
+
+    - name: Update "apt"
+      apt:
+        update_cache: yes
+        autoclean: yes
+
+    - name: Installation PHP 8.0
+      apt: name=php8.0 state=present
+
+    - name: Update "apt"
+      apt:
+        update_cache: yes
+        autoclean: yes
+
+    - name: Install PHP Modules
+      apt:
+        pkg:
+          - php8.0-sqlite3
+          - php8.0-curl
+          - php8.0-memcached
+          - php8.0-fpm
+          - php8.0-common
+          - php8.0-xsl
+          - php8.0-mbstring
+          - php8.0-zip
+          - php8.0-mysql
+          - php8.0-pgsql
+          - php8.0-yaml
+          - php8.0-cli
+          - php8.0-oauth
+          - php8.0-xml
+
+    # firewall stuff
+    - name: Allow HTTP
+      ufw:
+        rule: allow
+        port: "80"
+        proto: tcp
+
+    - name: Allow HTTPS
+      ufw:
+        rule: allow
+        port: "443"
+        proto: tcp
+
+    - name: Allow SSH
+      ufw:
+        rule: allow
+        port: "22"
+        proto: tcp
+
+    - name: Allow MySQL
+      ufw:
+        rule: allow
+        port: "3306"
+        proto: tcp
+
+    # database
+
+    - name: install python, pip etc
+      shell: apt-get -y install "{{ item }}"
+      with_items:
+        - pip
+        - python3-dev
+        - default-libmysqlclient-dev
+        - build-essential
+
+    - name: Install MySQL server
+      shell: apt-get -y install mysql-server
+
+    - name: Install MySQL client
+      shell: apt-get -y install mysql-client
+
+    - name: pip install mysqlclient
+      shell: pip install mysqlclient
+
+    - name: Start the MySQL service
+      action: service name=mysql state=started
+
+    - name: copy .my.cnf file with root password credentials
+      template: src=/home/ian/Ansible/playbooks/shared/my.cnf.j2 dest=/root/.my.cnf owner=root mode=0600
+
+    - name: update mysql root password for all root accounts
+      mysql_user:
+        name: root
+        host: localhost
+        password: "{{ new_mysql_root_password }}"
+
+    - name: delete anonymous MySQL server user for localhost
+      action: mysql_user user="" state="absent"
+
+    - name: remove the MySQL test database
+      action: mysql_db db=test state=absent
+
+    #  - name: Remove   /root/.my.cnf
+    #    ansible.builtin.file:
+    #      path: /root/.my.cnf
+    #      state: absent
+
+    #  - name: Update "apt"
+    #  apt:
+    #  update_cache: yes
+    #  autoclean: yes
+    #  autoremove: yes
+#
+#  - name: Install Python3
+#  apt:
+#  name: python3
+#  state: present
+#
+#  - name: Install Pip
+#  apt:
+#  name: pip
+#  state: present
+#
+#  - name: Install MySQL server
+#  apt:
+#  name:
+#  state:
+#
+#  - name: Install MySQL client
+#  apt:
+#  name:
+#  state:
+#
+#  - name: Install PyMySQL Library
+#  pip:
+#  name:
+#  state:
+#
+#  - name: Start the MySQL service
+#  service:
+#  name:
+#  state:
+#  enabled:
+#
+#  - name: mod the auth plugin of MySQL
+#  command: find it
+#
+#  - name: Reload all Privileges
+#  command:
+#
+#  - name: Set MySQL root password
+#  mysql_user:
+#  login_host:
+#  login_user:
+#  login_password:
+#  name:
+#  password:
+#  state:
+#
+#  - name: Delete Anony MySQL user
+#  mysql_user:
+#  login_user:
+#  login_password:
+#  name:
+#  host:
+#  state:
+#
+#  - name: Create Database
+#  mysql_db:
+#  login_user:
+#  login_password:
+#  name:
+#  state:
+#
+#  - name: Create Database User
+#  mysql_user:
+#  login_user:
+#  login_password:
+#  name:
+#  password: ''
+#  priv:
+#
+#  - name: Ensure the created User Uses the database
+#  command:
+#
+#  - name: Set MySQL created user's password
+#  mysql_user:
+#  login_host:
+#  login_user:
+#  login_password:
+#  name:
+#  password:
+#  state:
+#
+#  - name: Remove the MySQL Test Database
+#  mysql_db:
+#  login_user:
+#  login_password:
+#  name:
+#  state:
+
+# start work
+#      - name: Change the working directory to /var/www/ and create skel directory
+#        command: mkdir skel
+#        args:
+#          chdir: /var/www/
+#          creates: skel
+
+#      - name: Clone the project repo into a new directory
+#        git:
+#          repo: https:// find it
+#          dest: /var/www/skel
+#          clone: yes
+#          update: no
+
+#      - name: Create the web.php file in the routes directory
+#        ansible.builtin.copy:
+#          dest: /var/www/skel/routes/web.php
+#          content: |
+#            <?php
+
+#            Route::get('/', function () {
+#                return view('welcome');
+#            });
+
+#      - name: Create an apache virtual host configuration file
+#        ansible.builtin.copy:
+#          dest: /var/www/skel/.env
+#          content: |
+#            APP_NAME="Laravel Realworld Example App"
+#            APP_ENV=local
+#            APP_KEY=
+#            APP_DEBUG=true
+#            APP_URL=http://localhost
+#            APP_PORT=3000
+
+#            LOG_CHANNEL=stack
+#            LOG_DEPRECATIONS_CHANNEL=null
+#            LOG_LEVEL=debug
+
+#            DB_CONNECTION=mysql
+#            DB_HOST=localhost
+#            DB_PORT=3306
+#            DB_DATABASE=laravel-realworld
+#            DB_USERNAME=use yours
+#            DB_PASSWORD=use yours
+
+#            BROADCAST_DRIVER=log
+#            CACHE_DRIVER=file
+#            FILESYSTEM_DISK=local
+#            QUEUE_CONNECTION=sync
+#            SESSION_DRIVER=file
+#            SESSION_LIFETIME=120
+
+#            MEMCACHED_HOST=127.0.0.1
+
+#            REDIS_HOST=127.0.0.1
+#            REDIS_PASSWORD=null
+#            REDIS_PORT=6379
+
+#            MAIL_MAILER=smtp
+#            MAIL_HOST=mailhog
+#            MAIL_PORT=1025
+#            MAIL_USERNAME=null
+#            MAIL_PASSWORD=null
+#            MAIL_ENCRYPTION=null
+#            MAIL_FROM_ADDRESS="hello@example.com"
+#            MAIL_FROM_NAME="${APP_NAME}"
+
+#            AWS_ACCESS_KEY_ID=
+#            AWS_SECRET_ACCESS_KEY=
+#            AWS_DEFAULT_REGION=us-east-1
+#            AWS_BUCKET=
+#            AWS_USE_PATH_STYLE_ENDPOINT=false
+
+#            PUSHER_APP_ID=
+#            PUSHER_APP_KEY=
+#            PUSHER_APP_SECRET=
+#            PUSHER_APP_CLUSTER=mt1
+
+#            MIX_PUSHER_APP_KEY="${PUSHER_APP_KEY}"
+#            MIX_PUSHER_APP_CLUSTER="${PUSHER_APP_CLUSTER}"
+
+#            L5_SWAGGER_GENERATE_ALWAYS=true
+#            SAIL_XDEBUG_MODE=develop,debug
+#            SAIL_SKIP_CHECKS=true
+
+#  # Composer
+#      - name: Download Composer Installer
+#        command: curl -sS complete It
+
+#      - name: Verify Installation Script is Safe to Run
+#        command: php -r "if (hash_file('SHA384', '/tmp/composer-setup.php') complete It
+
+#      - name: Install Composer Globally
+#        command: sudo php /tmp/ complete it
+
+#      - name: Make composer executable by user
+#        file:
+#          path: /u do same
+#          mode: '755'
+
+#      - name: Download and install all requirements outlined in the /var/www/skel/composer.lock
+#        shell: composer install --no-interaction --no-dev --prefer-dist
+#        args:
+#          chdir: /var/www/skel
+
+#  # Remainder
+#      - name: Run the php artisan .... command
+#        ansible.builtin.shell: php artisan key:generate
+#        args:
+#          chdir: /var/www/skel
+
+#      - name: Run the php artisan .... command
+#        ansible.builtin.shell: php artisan config:cache
+#        args:
+#          chdir: /var/www/skel
+
+#      - name: Run the php artisan .... command
+#        ansible.builtin.shell: add it
+#        args:
+#          chdir: /var/www/skel
+
+#      - name: Run the php artisan .... command
+#        ansible.builtin.shell: add it
+#        args:
+#          chdir: /var/www/skel
+
+#      - name: Create an apache virtual host configuration file
+#        ansible.builtin.copy:
+#          dest: /etc/apache2/sites-available/skel.conf
+#          content: |
+#            <VirtualHost *:80>
+#                ServerAdmin admin@skel.me
+#                ServerName skel.me
+#                ServerAlias www.skel.me
+#                DocumentRoot /var/www/skel/public
+
+#                <Directory /var/www/skel/public>
+#                    AllowOverride All
+#                </Directory>
+
+#                ErrorLog ${APACHE_LOG_DIR}/error.log
+#                CustomLog ${APACHE_LOG_DIR}/access.log combined
+#            </VirtualHost>
+
+#      - name: Enable a2enmod rewrite
+#        ansible.builtin.command: add it
+
+#      - name: Disable default apache page and enable laravel page
+#        ansible.builtin.command: add it
+
+#      - name: Enable laravel page
+#        ansible.builtin.command: add it
+
+#      - name: Change file ownership, group and permissions
+#        ansible.builtin.file:
+#          path: /var/www/skel
+#          state: directory
+#          recurse: yes
+#          owner: www-data
+#          group: www-data
+#          mode: '775'
+
+#      - name: Restart apache web server
+#        ansible.builtin.command: add it
+
+#      - name: set timezone to Africa/Lagos
+#        timezone:
+#          name: add it
+
+#      - name: install Postgressssssssss
+#        ansible.builtin.script: add it
+#        args:
+#          chdir: add it
+
+#      - name: Figure out the module to secure you App
+#        state: it exists
