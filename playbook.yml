@@ -4,7 +4,6 @@
   become: yes
   remote_user: ubuntu
   vars:
-    new_mysql_root_password: redacted
     mysqlsoftware:
       - mysql-server
       - mysql-client
@@ -17,6 +16,7 @@
         update_cache: yes
         autoclean: yes
         autoremove: yes
+      ignore_errors: yes
 
     - name: Install (git, apache2 unzip, curl)
       apt:
@@ -37,6 +37,7 @@
       apt:
         update_cache: yes
         autoclean: yes
+      ignore_errors: yes
 
     - name: Installation PHP 8.0
       apt: name=php8.0 state=present
@@ -45,6 +46,7 @@
       apt:
         update_cache: yes
         autoclean: yes
+      ignore_errors: yes
 
     - name: Install PHP Modules
       apt:
@@ -100,50 +102,71 @@
         - default-libmysqlclient-dev
         - build-essential
 
-    - name: Install MySQL server
-      shell: apt-get -y install mysql-server
+    # - name: Install MySQL server
+    #   shell: apt-get -y install mysql-server
 
-    - name: Install MySQL client
-      shell: apt-get -y install mysql-client
+    # - name: Install MySQL client
+    #   shell: apt-get -y install mysql-client
 
-    - name: pip install mysqlclient
-      shell: pip install mysqlclient
+    # - name: pip install mysqlclient
+    #   shell: pip install mysqlclient
 
-    - name: Start the MySQL service
-      action: service name=mysql state=started
-
-    - name: creating mysql user (ubuntu)
-      mysql_user:
-        name: ubuntu
-        password: Barraghan74
-        priv: '*.*:ALL'
-        host: '%'
-        state: present
-      ignore_errors: yes
+    # - name: Start the MySQL service
+    #   action: service name=mysql state=started
     
-    - name: creating laravel database
-      mysql_db:
-        name: laravel-db
-        state: present
-      ignore_errors: yes
+    # - name: Create deploy user for mysql
+    #   mysql_user: user=ubuntu host="%" password=Barraghan74 priv=*.*:ALL,GRANT login_unix_socket=var/lib/mysql/mysql.sock
+
+    # - name: Ensure anonymous users are not in the database
+    #   mysql_user: user='' host=$item state=absent login_unix_socket=var/lib/mysql/mysql.sock
+    #   with_items:
+    #     - 127.0.0.1
+    #     - ::1
+    #     - localhost
+
+    # # - name: Copy .my.cnf file with root password credentials
+    # #   template: src=templates/.my.cnf dest=/etc/mysql/my.cnf owner=root mode=0600
+
+    # - name: Update mysql root password for all root accounts
+    #   mysql_user: name=root host={{item}} password=Barraghan74 login_unix_socket=var/lib/mysql/mysql.sock
+    #   with_items:
+    #     - 127.0.0.1
+    #     - ::1
+    #     - localhost
     
-    - name: Enable remote login to mysql
-      lineinfile:
-         path: /etc/mysql/mysql.conf.d/mysqld.cnf
-         regexp: '^bind-address'
-         line: 'bind-address = 0.0.0.0'
-         backup: yes
-      notify:
-         - Restart mysql
-      ignore_errors: yes
+    # - name: creating mysql user (ubuntu)
+      # mysql_user:
+        # name: ubuntu
+        # password: Barraghan74
+        # priv: '*.*:ALL'
+        # host: '%'
+        # state: present
+        # check_implicit_admin: yes
+      # ignore_errors: yes
+    # 
+    # - name: creating laravel database
+      # mysql_db:
+        # name: laravel-db
+        # state: present
+      # ignore_errors: yes
+    # 
+    # - name: Enable remote login to mysql
+      # lineinfile:
+        #  path: /etc/mysql/mysql.conf.d/mysqld.cnf
+        #  regexp: '^bind-address'
+        #  line: 'bind-address = 0.0.0.0'
+        #  backup: yes
+      # notify:
+        #  - Restart mysql
+      # ignore_errors: yes
 
-    - name: delete anonymous MySQL server user for localhost
-      action: mysql_user user="" state="absent"
-      ignore_errors: yes
+    # - name: delete anonymous MySQL server user for localhost
+    #   action: mysql_user user="" state="absent"
+    #   ignore_errors: yes
 
-    - name: remove the MySQL test database
-      action: mysql_db db=test state=absent
-      ignore_errors: yes
+    # - name: remove the MySQL test database
+    #   action: mysql_db db=test state=absent
+    #   ignore_errors: yes
 
   # start work
     
@@ -186,7 +209,7 @@
           DB_HOST=localhost
           DB_PORT=3306
           DB_DATABASE=laravel-db
-          DB_USERNAME=ubuntu
+          DB_USERNAME=root
           DB_PASSWORD=Barraghan74
           BROADCAST_DRIVER=log
           CACHE_DRIVER=file
@@ -309,10 +332,44 @@
         group: www-data
         mode: '775'
 
+    # - name: Add certbot ppa
+    #   apt_repository:
+    #     repo: ppa:certbot/certbot
+    #     state: present
+    #   become: true
+
+    # - name: Install certbot
+    #   apt:
+    #     name: python-certbot-nginx
+    #     state: present
+    #     update_cache: yes
+    #   become: true
+    
     - name: ensure apache is running
       service:
         name: httpd
         state: started
+
+    # - name: Check if certificate already exists
+      # stat:
+        # path: /etc/letsencrypt/live/{{ domain }}/fullchain.pem
+      # become: true
+      # register: letsencrypt_cert
+    # 
+    # - name: Generate certificate
+      # shell: "certbot certonly -d {{ domain.split() | join(' -d ') }} --email {{ email }} {{ certbot_extra_args }}"
+      # become: true
+      # when: not letsencrypt_cert.stat.exists
+    # 
+    # - name: Setup renew hook
+      # lineinfile:
+        # dest: "/etc/letsencrypt/renewal/{{ domain }}.conf"
+        # insertafter: "^server ="
+        # line: "renew_hook = {{ renew_hook }}"
+        # state: present
+      # become: true
+      # when: not letsencrypt_cert.stat.exists
+
 
 #      - name: set timezone to Africa/Lagos
 #        timezone:
@@ -325,7 +382,7 @@
 
 #      - name: Figure out the module to secure you App
 #        state: it exists
-
+  
   handlers:
       - name: Restart mysql
         service:
